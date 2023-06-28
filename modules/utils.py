@@ -72,7 +72,7 @@ def cal_jaccard(org_set, o2b_set):
     return float(len(org_set.intersection(o2b_set)) / len(org_set.union(o2b_set)))    
 
 class clustering_algs():
-    def __init__(self, data, clst_alg, K, sim_method, random_state=None) -> None:
+    def __init__(self, data, clst_alg, K, random_state=None) -> None:
         self.clst_alg = clst_alg
         
         if clst_alg == 'kmeans':
