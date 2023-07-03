@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
+from tqdm.notebook import tqdm
 
 from modules.utils import clustering_algs
 
@@ -59,7 +60,7 @@ class instability():
         idx = np.arange(org_data.shape[0])
         Indicator = {True: 1, False: 0}
         
-        for b in range(B):
+        for b in tqdm(range(B), desc="Bootstrapping..."):
             resample_idx = np.random.choice(org_data.shape[0], size=self.resample_size, replace=True)
             boot_data_1 = org_data[resample_idx, ]
 

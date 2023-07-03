@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm.notebook import tqdm
 from modules.utils import clustering_algs, map_B_center_to_O_center, cal_jaccard
 from scipy.spatial.distance import cdist
 
@@ -64,7 +65,7 @@ class stability():
         stability_matrix_naive = np.empty((B, org_data.shape[0]))
         stability_matrix_jaccard = np.empty((B, org_data.shape[0]))
         stability_matrix_cluster_wise_jaccard = np.empty((B, K))
-        for b in range(B):
+        for b in tqdm(range(B), desc="Bootstrapping..."):
             resample_idx = np.random.choice(org_data.shape[0], size=org_data.shape[0], replace=True)
             boot_data = org_data[resample_idx, ]
             
