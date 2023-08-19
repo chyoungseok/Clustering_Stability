@@ -47,6 +47,47 @@ class stability():
         ax.set_xticks(range(2,max_K+1))
 
     @staticmethod
+    def getJaccard_scheme2(_orgClustering, list_bootClustering, B, K):
+        idx = np.arange(_orgClustering.data.shape[0])
+        total_clustering = [_orgClustering] + list_bootClustering
+
+        obs_jaccard_for_each_ref = np.empty((B+1, len(idx)))
+        clust_jaccard_for_each_ref = np.empty((B+1, K))
+        over_jaccard_for_each_ref = np.empty((B+1, 1))
+        for r in range(B+1):
+            ref_clustering = total_clustering[r] # reference clustering 지정
+
+            b_iter = 0
+            stability_matrix_jaccard = np.empty((B, len(idx)))
+            for b in range(B+1):
+                if b == r:
+                    continue
+
+                r2b_labels = cdist(total_clustering[b].center, total_clustering[r].data, metric='euclidean').argmin(axis=0) # reference data를 bootClustering의 center에 mapping
+
+                for i in range(len(idx)):
+                    temp_ref_label = ref_clustering.labels[i] # x_i가 origianl clustering에서 가지는 label
+                    temp_r2b_label = r2b_labels[i] # x_i가 boot clustering에서 가지는 label
+                    
+                    ref_set = set(idx[ref_clustering.labels == temp_ref_label]) # x_i와 같은 refCluster에 있는 data members
+                    r2b_set = set(idx[r2b_labels == temp_r2b_label]) # x_i와 같은 bootCluster에 있는 data members
+                        
+                    # Jaccard based stability
+                    stability_matrix_jaccard[b_iter, i] = cal_jaccard(ref_set, r2b_set)
+                b_iter += 1
+            
+            temp_ref_stabs = stability.getStabilities(stability_matrix_jaccard, _orgClustering=ref_clustering, K=K)
+            obs_jaccard_for_each_ref[r] = temp_ref_stabs[0]
+            clust_jaccard_for_each_ref[r] = temp_ref_stabs[1]
+            over_jaccard_for_each_ref[r] = temp_ref_stabs[2]
+
+        obs_jaccard_scheme2 = np.mean(obs_jaccard_for_each_ref, axis=0)
+        clust_jaccard_scheme2 = np.mean(clust_jaccard_for_each_ref, axis=0)
+        over_jaccard_scheme2 = np.mean(over_jaccard_for_each_ref)
+        return [obs_jaccard_scheme2, clust_jaccard_scheme2, over_jaccard_scheme2]
+
+
+    @staticmethod
     def getSmin_scheme2(_orgClustering, list_bootClustering, B, K):
         # reference clustering을 original clustering 뿐만 아니라, 각각의 bootstrapping clustering에도 적용
         Smin_scheme2_for_each_ref = np.empty((B+1, 1)) # reference clustering을 달리하면서 계산한 각 Smin을 기록 --> 마지막에 이들을 평균내서 Smin_scheme2를 구함
@@ -162,6 +203,9 @@ class stability():
 
         Smin_scheme1 = np.mean(np.min(stability_matrix_cluster_wise_jaccard, axis=1)) # calculate Smin_scheme1
 
+        # jaccard (scheme2); observation, cluster, and overall level
+        jaccard_stabs_scheme2 = self.getJaccard_scheme2(_orgClustering, list_bootClustering, B, K)
+
         # Smin (scheme2)
         Smin_scheme2 = self.getSmin_scheme2(_orgClustering, list_bootClustering, B, K)
 
@@ -172,5 +216,6 @@ class stability():
         self.stability_matrix_cluster_wise_jaccard = stability_matrix_cluster_wise_jaccard
         self.naive_stabs = self.getStabilities(stability_matrix_naive, _orgClustering, K=K)
         self.jaccard_stabs = self.getStabilities(stability_matrix_jaccard, _orgClustering, K=K)
+        self.jaccard_stabs_scheme2 = jaccard_stabs_scheme2
         self.Smin_scheme1 = Smin_scheme1
         self.Smin_scheme2 = Smin_scheme2
