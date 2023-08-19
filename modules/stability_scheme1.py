@@ -45,6 +45,41 @@ class stability():
         plt.xlabel("K (number of clusters)", fontdict={'fontsize':15})
         plt.title("Optimize the K (Bootstrapping=%d times for each K)" % B)
         ax.set_xticks(range(2,max_K+1))
+
+    @staticmethod
+    def getSmin_scheme2(_orgClustering, list_bootClustering, B, K):
+        # reference clustering을 original clustering 뿐만 아니라, 각각의 bootstrapping clustering에도 적용
+        Smin_scheme2_for_each_ref = np.empty((B+1, 1)) # reference clustering을 달리하면서 계산한 각 Smin을 기록 --> 마지막에 이들을 평균내서 Smin_scheme2를 구함
+        total_clustering = [_orgClustering] + list_bootClustering
+        idx = np.arange(_orgClustering.data.shape[0]) 
+
+        for r in range(B+1):
+            # total_clustering의 모든 요소가 reference_clustering의 후보임 --> 각 ref에 대하여 반복
+            ref_clustering = total_clustering[r] # reference clustering 지정
+            stability_matrix_cluster_wise_jaccard_scheme2 = np.empty((B, K)) # 현재 ref_clustering에 대한 cluster wise stability를 저장할 matrix
+
+            b_iter = 0
+            for b in range(B+1):
+                if b == r:
+                    continue
+                
+                r2b_labels = cdist(total_clustering[b].center, total_clustering[r].data, metric='euclidean').argmin(axis=0) # reference data를 bootClustering의 center에 mapping
+
+                # Cluster-wise jaccard based stability (comparison between ref_clustering vs. total_clustering[b])
+                for k in range(K):
+                    cluster_wise_similarity = 0
+                    ref_set = set(idx[ref_clustering.labels == k]) # ref_clustering의 k번째 cluster에 포함된 모든 sample들의 index
+                        
+                    for idx_for_tempK in ref_set: # ref_idx의 모든 sample에 대한 반복문
+                        temp_label = r2b_labels[idx_for_tempK] # temp sample의 r2b_label
+                        r2b_set = set(idx[r2b_labels == temp_label]) # temp sample이 포함되어 있는 r2b cluster의 모든 sample의 index
+                        cluster_wise_similarity += cal_jaccard(ref_set, r2b_set)
+                    stability_matrix_cluster_wise_jaccard_scheme2[b_iter, k] = cluster_wise_similarity/len(ref_set)
+                b_iter += 1
+            Smin_scheme2_for_each_ref[r] = np.mean(np.min(stability_matrix_cluster_wise_jaccard_scheme2, axis=1)) # calculate Smin for each reference clustering
+        Smin_scheme2 = np.mean(Smin_scheme2_for_each_ref) # Smin_scheme2 calculated by averaging all the Smin of reference clustering
+        return Smin_scheme2
+
             
     
     def __init__(self, org_data, K=2, B=10, B2O_mapping_method='jaccard', clst_alg='kmeans') -> None:
@@ -125,41 +160,11 @@ class stability():
                 
                 stability_matrix_cluster_wise_jaccard[b, k] = cluster_wise_similarity/len(org_set)
 
-        Smin_scheme1 = np.mean(np.min(stability_matrix_cluster_wise_jaccard, axis=1)) # calculate Smin
+        Smin_scheme1 = np.mean(np.min(stability_matrix_cluster_wise_jaccard, axis=1)) # calculate Smin_scheme1
 
         # Smin (scheme2)
-        # reference clustering을 original clustering 뿐만 아니라, 각각의 bootstrapping clustering에도 적용
-        Smin_scheme2_for_each_ref = np.empty((B+1, 1)) # reference clustering을 달리하면서 계산한 각 Smin을 기록 --> 마지막에 이들을 평균내서 Smin_scheme2를 구함
-        total_clustering = [_orgClustering] + list_bootClustering
+        Smin_scheme2 = self.getSmin_scheme2(_orgClustering, list_bootClustering, B, K)
 
-        for r in range(B+1):
-            # total_clustering의 모든 요소가 reference_clustering의 후보임 --> 각 ref에 대하여 반복
-            ref_clustering = total_clustering[r] # reference clustering 지정
-            stability_matrix_cluster_wise_jaccard_scheme2 = np.empty((B, K)) # 현재 ref_clustering에 대한 cluster wise stability를 저장할 matrix
-
-            b_iter = 0
-            for b in range(B+1):
-                if b == r:
-                    continue
-                
-                r2b_labels = cdist(total_clustering[b].center, total_clustering[r].data, metric='euclidean').argmin(axis=0) # reference data를 bootClustering의 center에 mapping
-
-                # Cluster-wise jaccard based stability (comparison between ref_clustering vs. total_clustering[b])
-                for k in range(K):
-                    cluster_wise_similarity = 0
-                    ref_set = set(idx[ref_clustering.labels == k]) # ref_clustering의 k번째 cluster에 포함된 모든 sample들의 index
-                        
-                    for idx_for_tempK in ref_set: # ref_idx의 모든 sample에 대한 반복문
-                        temp_label = r2b_labels[idx_for_tempK] # temp sample의 r2b_label
-                        r2b_set = set(idx[r2b_labels == temp_label]) # temp sample이 포함되어 있는 r2b cluster의 모든 sample의 index
-                        cluster_wise_similarity += cal_jaccard(ref_set, r2b_set)
-                    stability_matrix_cluster_wise_jaccard_scheme2[b_iter, k] = cluster_wise_similarity/len(ref_set)
-                b_iter += 1
-            Smin_scheme2_for_each_ref[r] = np.mean(np.min(stability_matrix_cluster_wise_jaccard_scheme2, axis=1)) # calculate Smin for each reference clustering
-        Smin_scheme2 = np.mean(Smin_scheme2_for_each_ref) # Smin_scheme2 calculated by averaging all the Smin of reference clustering
-
-
-            
         self._orgClustering = _orgClustering
         self.list_bootClustering = list_bootClustering
         self.stability_matrix_naive = stability_matrix_naive
