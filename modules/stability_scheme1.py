@@ -142,7 +142,7 @@ class stability():
         stability_matrix_naive = np.empty((B, org_data.shape[0]))
         stability_matrix_jaccard = np.empty((B, org_data.shape[0]))
         stability_matrix_cluster_wise_jaccard = np.empty((B, K))
-        for b in tqdm(range(B), desc="Bootstrapping..."):
+        for b in tqdm(range(B), desc="Bootstrapping for %dth cluster..." % K):
             resample_idx = np.random.choice(org_data.shape[0], size=org_data.shape[0], replace=True)
             boot_data = org_data[resample_idx, ]
             
